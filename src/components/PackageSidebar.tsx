@@ -8,10 +8,21 @@ interface PackageSidebarProps {
 
 type NpmRegistryResponse = {
   "dist-tags"?: { latest?: string };
-  versions?: Record<string, { license?: unknown; keywords?: unknown; repository?: unknown }>;
+  versions?: Record<
+    string,
+    {
+      license?: unknown;
+      keywords?: unknown;
+      repository?: unknown;
+      author?: unknown;
+      maintainers?: unknown;
+    }
+  >;
   license?: unknown;
   keywords?: unknown;
   repository?: unknown;
+  author?: unknown;
+  maintainers?: unknown;
 };
 
 type PyPiResponse = {
@@ -21,6 +32,10 @@ type PyPiResponse = {
     keywords?: string;
     project_urls?: Record<string, string>;
     home_page?: string;
+    author?: string;
+    maintainer?: string;
+    author_email?: string;
+    maintainer_email?: string;
   };
 };
 
@@ -29,6 +44,7 @@ type PackagistVersion = {
   license?: string[] | string;
   keywords?: string[];
   source?: { url?: string };
+  authors?: Array<{ name?: string; email?: string; homepage?: string }>;
 };
 
 type PackagistResponse = {
@@ -44,6 +60,7 @@ type RemoteMeta = {
   keywords?: string[];
   registryUrl?: string;
   repoUrl?: string;
+  author?: string;
 };
 
 const normalizeKeywords = (keywords: unknown) => {
@@ -75,6 +92,65 @@ const normalizeLicense = (license: unknown) => {
   return undefined;
 };
 
+const normalizeAuthor = (author: unknown) => {
+  if (!author) return undefined;
+  if (typeof author === "string") {
+    return author.trim() || undefined;
+  }
+  if (typeof author === "object") {
+    const maybeName = (author as { name?: unknown }).name;
+    if (typeof maybeName === "string" && maybeName.trim()) {
+      return maybeName.trim();
+    }
+  }
+  return undefined;
+};
+
+const normalizeMaintainers = (maintainers: unknown) => {
+  if (!Array.isArray(maintainers)) return undefined;
+  const names = maintainers
+    .map((maintainer) => {
+      if (typeof maintainer === "string") return maintainer.trim();
+      if (maintainer && typeof maintainer === "object") {
+        const maybeName = (maintainer as { name?: unknown }).name;
+        if (typeof maybeName === "string") return maybeName.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+  return names.length ? names.join(", ") : undefined;
+};
+
+const normalizeAuthorList = (authors?: Array<{ name?: string }>) => {
+  if (!authors?.length) return undefined;
+  const names = authors
+    .map((author) => (author?.name || "").trim())
+    .filter(Boolean);
+  return names.length ? names.join(", ") : undefined;
+};
+
+const getRepositoryUrl = (repository: unknown) => {
+  if (!repository) return undefined;
+  if (typeof repository === "string") return repository;
+  if (typeof repository === "object") {
+    const maybeUrl = (repository as { url?: unknown }).url;
+    if (typeof maybeUrl === "string") return maybeUrl;
+  }
+  return undefined;
+};
+
+const getRepoOwner = (repoUrl?: string) => {
+  if (!repoUrl) return undefined;
+  const normalized = repoUrl
+    .replace(/^git\+/, "")
+    .replace(/^git:\/\//, "https://")
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "");
+  const match = normalized.match(/github\.com[/:]([^/]+)\/([^/]+)$/i);
+  if (!match) return undefined;
+  return match[1];
+};
+
 const getLatestPackagistEntry = (versions?: Record<string, PackagistVersion>, allowDev = true) => {
   if (!versions) return null;
   const entries = Object.entries(versions).filter(([key, version]) => {
@@ -96,7 +172,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
   const cachedMeta = remoteMeta[packageId];
 
   useEffect(() => {
-    if (cachedMeta || (packageId !== "npm" && packageId !== "pip" && packageId !== "composer")) {
+    if (cachedMeta) {
       return;
     }
 
@@ -115,12 +191,11 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
           const latestVersion = latest ? data.versions?.[latest] : undefined;
           const nextKeywords = normalizeKeywords(latestVersion?.keywords ?? data.keywords);
           const nextLicense = normalizeLicense(latestVersion?.license ?? data.license);
-          const repo =
-            typeof latestVersion?.repository === "string"
-              ? latestVersion?.repository
-              : typeof data.repository === "string"
-                ? data.repository
-                : undefined;
+          const repo = getRepositoryUrl(latestVersion?.repository) ?? getRepositoryUrl(data.repository);
+          const nextAuthor =
+            normalizeAuthor(latestVersion?.author ?? data.author) ||
+            normalizeMaintainers(latestVersion?.maintainers ?? data.maintainers) ||
+            getRepoOwner(repo);
 
           if (isActive) {
             setRemoteMeta((prev) => ({
@@ -129,6 +204,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
                 version: latest,
                 license: nextLicense,
                 keywords: nextKeywords.length ? nextKeywords : undefined,
+                author: nextAuthor,
                 repoUrl: repo,
                 registryUrl: "https://www.npmjs.com/package/konthaina-khqr",
               },
@@ -145,6 +221,12 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
           const data = (await res.json()) as PyPiResponse;
           const nextKeywords = normalizeKeywords(data.info?.keywords);
           const projectUrls = data.info?.project_urls ?? {};
+          const nextAuthor =
+            (data.info?.author || "").trim() ||
+            (data.info?.maintainer || "").trim() ||
+            (data.info?.author_email || "").trim() ||
+            (data.info?.maintainer_email || "").trim() ||
+            undefined;
           const repoUrl =
             projectUrls.Source ||
             projectUrls.Repository ||
@@ -158,6 +240,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
                 version: data.info?.version,
                 license: data.info?.license,
                 keywords: nextKeywords.length ? nextKeywords : undefined,
+                author: nextAuthor || getRepoOwner(repoUrl),
                 repoUrl,
                 registryUrl: "https://pypi.org/project/konthaina-khqr/",
               },
@@ -176,6 +259,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
         const version = latestEntry?.[1];
         const nextLicense = normalizeLicense(version?.license);
         const nextKeywords = normalizeKeywords(version?.keywords);
+        const nextAuthor = normalizeAuthorList(version?.authors);
         const repoUrl = version?.source?.url || data.package?.repository;
 
         if (isActive) {
@@ -185,6 +269,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
               version: versionKey,
               license: nextLicense,
               keywords: nextKeywords.length ? nextKeywords : undefined,
+              author: nextAuthor || getRepoOwner(repoUrl),
               repoUrl,
               registryUrl: "https://packagist.org/packages/konthaina/khqr-php",
             },
@@ -218,6 +303,11 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
       <div>
         <h3 className="font-semibold text-foreground mb-2">License</h3>
         <p className="text-muted-foreground">{resolvedMeta.license || "--"}</p>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-foreground mb-2">Author</h3>
+        <p className="text-muted-foreground">{resolvedMeta.author || "--"}</p>
       </div>
 
       <div>
