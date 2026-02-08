@@ -3,11 +3,31 @@ import Header from "@/components/Header";
 import PackageReadme from "@/components/PackageReadme";
 import { type PackageId } from "@/data/packages";
 
-const tabs: { id: PackageId; label: string; icon: string }[] = [
-  { id: "npm", label: "npm (TypeScript)", icon: "📦" },
-  { id: "pip", label: "pip (Python)", icon: "🐍" },
-  { id: "composer", label: "Composer (PHP)", icon: "🐘" },
-];
+const tabs: {
+  id: PackageId;
+  label: string;
+  iconSrc: string;
+  iconClassName: string;
+}[] = [
+    {
+      id: "npm",
+      label: "npm (TypeScript)",
+      iconSrc: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/npm/npm-original.svg",
+      iconClassName: "h-5 w-10",
+    },
+    {
+      id: "pip",
+      label: "pip (Python)",
+      iconSrc: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/pypi/pypi-original.svg",
+      iconClassName: "h-5 w-10",
+    },
+    {
+      id: "composer",
+      label: "Composer (PHP)",
+      iconSrc: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/composer/composer-original.svg",
+      iconClassName: "h-5 w-10",
+    },
+  ];
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<PackageId>("npm");
@@ -25,7 +45,7 @@ const Index = () => {
           </p>
           <div className="flex gap-2 mt-4 flex-wrap">
             {["MIT License", "CRC-16 Verification", "Static & Dynamic QR"].map((badge) => (
-              <span key={badge} className="border border-header-foreground/20 text-xs font-mono px-3 py-1 rounded-full opacity-70">
+              <span key={badge} className="border border-header-foreground/20 text-xs font-mono px-3 py-1 opacity-70">
                 {badge}
               </span>
             ))}
@@ -41,13 +61,21 @@ const Index = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
-                <span className="mr-1.5">{tab.icon}</span>
+                <span className="inline-flex items-center">
+                  <img
+                    src={tab.iconSrc}
+                    alt=""
+                    aria-hidden="true"
+                    className={`${tab.iconClassName} shrink-0`}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
                 {tab.label}
               </button>
             ))}
