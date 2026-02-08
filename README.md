@@ -9,7 +9,7 @@ This is a Vite + React + TypeScript project using shadcn-ui and Tailwind CSS.
 - Node.js 20+ (LTS recommended)
 - npm 9+
 
-## Author
+## Maintainers
 
 ![Konthaina GitHub avatar](https://github.com/konthaina.png?size=50)
 
