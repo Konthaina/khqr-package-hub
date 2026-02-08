@@ -1,73 +1,88 @@
-# Welcome to your Lovable project
+# KHQR Package Hub
 
-## Project info
+## Overview
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+This is a Vite + React + TypeScript project using shadcn-ui and Tailwind CSS.
 
-## How can I edit this code?
+## Requirements
 
-There are several ways of editing your application.
+- Node.js 20+ (LTS recommended)
+- npm 9+
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Local Setup
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone
 git clone <YOUR_GIT_URL>
+cd khqr-showcase-hub
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run dev       # Start dev server
+npm run build     # Production build (outputs to dist/)
+npm run preview   # Preview production build
+npm run lint      # Lint
+npm run test      # Run tests
+```
 
-**Use GitHub Codespaces**
+## Build Output
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Vite outputs production files to `dist/`.
 
-## What technologies are used for this project?
+## Deploy to GitHub Pages (Project Site)
 
-This project is built with:
+This repo is configured for GitHub Pages at:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+`https://konthaina.github.io/khqr-package-hub/`
 
-## How can I deploy this project?
+### 1) Vite base path
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+`vite.config.ts` is set with:
 
-## Can I connect a custom domain to my Lovable project?
+```ts
+base: "/khqr-package-hub/"
+```
 
-Yes, you can!
+### 2) Router base
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+`BrowserRouter` uses `basename={import.meta.env.BASE_URL}` in `src/App.tsx` so routes work under `/khqr-package-hub/`.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 3) GitHub Actions workflow
+
+The workflow file is:
+
+`.github/workflows/deploy.yml`
+
+It builds the app and deploys the `dist/` folder to GitHub Pages on every push to `main`.
+
+### 4) Enable Pages
+
+In GitHub:
+
+Settings → Pages → Source: **GitHub Actions**
+
+## Troubleshooting
+
+### 404 on refresh
+
+GitHub Pages does not support SPA history fallback by default. If you refresh a deep link, you might see 404.
+
+Options:
+- Switch to `HashRouter` for zero-config routing on Pages.
+- Add a `404.html` redirect fallback if you want clean URLs.
+
+### Deployment failure at “Configure Pages”
+
+Make sure:
+- The repo is **Public**, or your plan allows Pages on private repos.
+- Pages source is set to **GitHub Actions**.
+
+Then re-run the workflow in **Actions**.
