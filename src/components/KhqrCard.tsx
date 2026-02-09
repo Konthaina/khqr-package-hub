@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { KHQRGenerator } from "konthaina-khqr";
-import { toPng } from "html-to-image";
 
 type Currency = "KHR" | "USD";
 
@@ -41,8 +40,6 @@ function formatAmount(
 export default function KhqrCard() {
     const khqrLogoSrc = `${import.meta.env.BASE_URL}khqr.svg`;
     const [currency, setCurrency] = useState<Currency>(khqrProfile.currency);
-    const [isDownloading, setIsDownloading] = useState(false);
-    const cardRef = useRef<HTMLDivElement | null>(null);
 
     const { md5, isValid, qrImageUrl } = useMemo(() => {
         const gen = new KHQRGenerator("individual")
@@ -76,30 +73,6 @@ export default function KhqrCard() {
         khqrProfile.showZeroAmount
     );
 
-    const handleDownload = async () => {
-        if (!cardRef.current) return;
-
-        setIsDownloading(true);
-        try {
-            const dataUrl = await toPng(cardRef.current, {
-                cacheBust: true,
-                pixelRatio: 2,
-                style: {
-                    borderRadius: "20px",
-                    overflow: "hidden",
-                },
-            });
-            const link = document.createElement("a");
-            link.download = `khqr-${currency.toLowerCase()}.png`;
-            link.href = dataUrl;
-            link.click();
-        } catch (error) {
-            console.error("Failed to download KHQR card", error);
-        } finally {
-            setIsDownloading(false);
-        }
-    };
-
     return (
         <section className="flex w-full justify-center">
             <div className="w-full max-w-[360px]">
@@ -125,11 +98,8 @@ export default function KhqrCard() {
                         </button>
                     </div>
                 </div>
-                {/* KHQR Card */}
-                <div
-                    ref={cardRef}
-                    className="relative overflow-hidden rounded-[20px] text-black shadow-lg"
-                >
+
+                <div className="relative overflow-hidden rounded-[20px] text-black shadow-lg">
                     <div
                         className="
               relative flex h-14 items-center justify-center bg-[#E1232E]
@@ -173,7 +143,6 @@ export default function KhqrCard() {
                                 src={qrImageUrl}
                                 alt={`KHQR for ${khqrProfile.merchantName}`}
                                 className="h-full w-full object-contain"
-                                crossOrigin="anonymous"
                                 loading="lazy"
                                 decoding="async"
                             />
@@ -187,16 +156,6 @@ export default function KhqrCard() {
                         </div>
                     </div>
                     <div className="px-12 py-6 text-center text-xs text-gray-600 bg-white"></div>
-                </div>
-                <div className="mt-6">
-                    <button
-                        type="button"
-                        onClick={handleDownload}
-                        disabled={isDownloading}
-                        className="w-full rounded-[16px] bg-[#E1232E] px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition-colors hover:bg-[#c91b26] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {isDownloading ? "Preparing download..." : "Download KHQR"}
-                    </button>
                 </div>
             </div>
         </section >
