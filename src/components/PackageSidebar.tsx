@@ -29,12 +29,14 @@ type PyPiResponse = {
   info?: {
     version?: string;
     license?: string;
+    license_expression?: string;
+    classifiers?: string[];
     keywords?: string;
     project_urls?: Record<string, string>;
     home_page?: string;
     author?: string;
     maintainer?: string;
-    author_email?: string;
+    // author_email?: string;
     maintainer_email?: string;
   };
 };
@@ -63,6 +65,38 @@ type RemoteMeta = {
   author?: string;
 };
 
+const normalizeLicenseString = (value: string) => {
+  const collapsed = value.replace(/\s+/g, " ").trim();
+  if (!collapsed) return undefined;
+  if (/^(unknown|none|n\/a)$/i.test(collapsed)) return undefined;
+
+  const parenMatch = collapsed.match(/^(.+?)\s*\((.+)\)$/);
+  if (parenMatch) {
+    const outer = parenMatch[1].trim();
+    const inner = parenMatch[2].trim();
+    if (outer && inner && outer.toLowerCase() === inner.toLowerCase()) {
+      return outer;
+    }
+  }
+
+  const hasNewline = /[\r\n]/.test(value);
+  if (hasNewline || collapsed.length > 120) {
+    const firstLine = value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+    if (firstLine) {
+      const normalizedLine = firstLine.replace(/\s+/g, " ").trim();
+      if (normalizedLine.length <= 120) {
+        return normalizedLine;
+      }
+      return `${normalizedLine.slice(0, 117)}...`;
+    }
+  }
+
+  return collapsed;
+};
+
 const normalizeKeywords = (keywords: unknown) => {
   if (Array.isArray(keywords)) {
     return keywords.filter((kw): kw is string => typeof kw === "string");
@@ -78,18 +112,39 @@ const normalizeKeywords = (keywords: unknown) => {
 
 const normalizeLicense = (license: unknown) => {
   if (typeof license === "string") {
-    return license;
+    return normalizeLicenseString(license);
   }
   if (Array.isArray(license)) {
-    return license.filter((item): item is string => typeof item === "string").join(", ");
+    const items = license
+      .filter((item): item is string => typeof item === "string")
+      .map(normalizeLicenseString)
+      .filter((item): item is string => Boolean(item));
+    return items.length ? items.join(", ") : undefined;
   }
   if (license && typeof license === "object" && "type" in license) {
     const maybeType = (license as { type?: unknown }).type;
     if (typeof maybeType === "string") {
-      return maybeType;
+      return normalizeLicenseString(maybeType);
     }
   }
   return undefined;
+};
+
+const getLicenseFromClassifiers = (classifiers?: string[]) => {
+  if (!classifiers?.length) return undefined;
+  const match = classifiers.find((classifier) => classifier.startsWith("License ::"));
+  if (!match) return undefined;
+  const parts = match.split("::").map((part) => part.trim()).filter(Boolean);
+  return parts[parts.length - 1];
+};
+
+const normalizePyPiLicense = (info?: PyPiResponse["info"]) => {
+  if (!info) return undefined;
+  const expression = normalizeLicense(info.license_expression);
+  if (expression) return expression;
+  const classifier = normalizeLicense(getLicenseFromClassifiers(info.classifiers));
+  if (classifier) return classifier;
+  return normalizeLicense(info.license);
 };
 
 const normalizeAuthor = (author: unknown) => {
@@ -104,6 +159,17 @@ const normalizeAuthor = (author: unknown) => {
     }
   }
   return undefined;
+};
+
+const stripEmailFromAuthor = (author?: string) => {
+  if (!author) return undefined;
+  const withoutAngle = author.replace(/\s*<[^>]+>\s*/g, " ").trim();
+  const withoutParen = withoutAngle.replace(/\s*\([^)]*[^)@][^)]*\)\s*/g, " ").trim();
+  if (!withoutParen) return undefined;
+  if (withoutParen.includes("@")) {
+    return withoutParen.split(/\s+/)[0] || undefined;
+  }
+  return withoutParen;
 };
 
 const normalizeMaintainers = (maintainers: unknown) => {
@@ -221,12 +287,9 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
           const data = (await res.json()) as PyPiResponse;
           const nextKeywords = normalizeKeywords(data.info?.keywords);
           const projectUrls = data.info?.project_urls ?? {};
-          const nextAuthor =
-            (data.info?.author || "").trim() ||
-            (data.info?.maintainer || "").trim() ||
-            (data.info?.author_email || "").trim() ||
-            (data.info?.maintainer_email || "").trim() ||
-            undefined;
+          const nextAuthor = stripEmailFromAuthor(
+            normalizeAuthor(data.info?.author) || normalizeAuthor(data.info?.maintainer)
+          );
           const repoUrl =
             projectUrls.Source ||
             projectUrls.Repository ||
@@ -238,7 +301,7 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
               ...prev,
               [packageId]: {
                 version: data.info?.version,
-                license: data.info?.license,
+                license: normalizePyPiLicense(data.info),
                 keywords: nextKeywords.length ? nextKeywords : undefined,
                 author: nextAuthor || getRepoOwner(repoUrl),
                 repoUrl,
@@ -357,5 +420,4 @@ const PackageSidebar = ({ packageId }: PackageSidebarProps) => {
 };
 
 export default PackageSidebar;
-
 

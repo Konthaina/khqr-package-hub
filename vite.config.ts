@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      buffer: path.resolve(__dirname, "./src/shims/buffer.ts"),
+      crypto: path.resolve(__dirname, "./src/shims/crypto.ts"),
     },
   },
 }));
