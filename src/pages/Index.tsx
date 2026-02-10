@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
-import KhqrCard from "@/components/KhqrCard";
 import PackageReadme from "@/components/PackageReadme";
 import { type PackageId } from "@/data/packages";
 
@@ -43,14 +42,6 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<PackageId>("npm");
   const navigate = useNavigate();
   const location = useLocation();
-  const lastNonDonatePathRef = useRef<string>("/");
-  const isDonateOpen = location.pathname === "/donate";
-
-  useEffect(() => {
-    if (location.pathname !== "/donate") {
-      lastNonDonatePathRef.current = location.pathname;
-    }
-  }, [location.pathname]);
 
   useEffect(() => {
     const tabFromPath = getTabFromPath(location.pathname);
@@ -63,18 +54,9 @@ const Index = () => {
     }
   }, [activeTab, location.pathname]);
 
-  useEffect(() => {
-    if (!isDonateOpen) return;
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, [isDonateOpen]);
-
   return (
     <div className="min-h-screen bg-background">
-      <Header onDonateClick={() => navigate("/donate")} isDonateOpen={isDonateOpen} />
+      <Header onDonateClick={() => navigate("/donate", { state: { backgroundLocation: location } })} />
 
       {/* Hero */}
       <div className="bg-header text-header-foreground py-10">
@@ -92,24 +74,6 @@ const Index = () => {
           </div>
         </div>
       </div>
-
-      {isDonateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
-          <button
-            type="button"
-            aria-label="Close donate modal"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => navigate(lastNonDonatePathRef.current || "/")}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-full max-w-[360px]"
-          >
-            <KhqrCard />
-          </div>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="border-b border-border bg-background sticky top-0 z-10">
