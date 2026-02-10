@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import KhqrCard from "@/components/KhqrCard";
@@ -31,11 +31,37 @@ const tabs: {
     },
   ];
 
+const tabIds = tabs.map((tab) => tab.id);
+
+const getTabFromPath = (pathname: string): PackageId | null => {
+  const segment = pathname.split("/").filter(Boolean)[0];
+  if (!segment) return null;
+  return tabIds.includes(segment as PackageId) ? (segment as PackageId) : null;
+};
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState<PackageId>("npm");
   const navigate = useNavigate();
   const location = useLocation();
+  const lastNonDonatePathRef = useRef<string>("/");
   const isDonateOpen = location.pathname === "/donate";
+
+  useEffect(() => {
+    if (location.pathname !== "/donate") {
+      lastNonDonatePathRef.current = location.pathname;
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const tabFromPath = getTabFromPath(location.pathname);
+    if (tabFromPath && tabFromPath !== activeTab) {
+      setActiveTab(tabFromPath);
+      return;
+    }
+    if (!tabFromPath && location.pathname === "/" && activeTab !== "npm") {
+      setActiveTab("npm");
+    }
+  }, [activeTab, location.pathname]);
 
   useEffect(() => {
     if (!isDonateOpen) return;
@@ -73,7 +99,7 @@ const Index = () => {
             type="button"
             aria-label="Close donate modal"
             className="absolute inset-0 bg-black/50"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(lastNonDonatePathRef.current || "/")}
           />
           <div
             role="dialog"
@@ -92,7 +118,10 @@ const Index = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  navigate(`/${tab.id}`);
+                }}
                 className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
