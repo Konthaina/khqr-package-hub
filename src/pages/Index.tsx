@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import KhqrCard from "@/components/KhqrCard";
 import PackageReadme from "@/components/PackageReadme";
@@ -32,7 +33,9 @@ const tabs: {
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<PackageId>("npm");
-  const [isDonateOpen, setIsDonateOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isDonateOpen = location.pathname === "/donate";
 
   useEffect(() => {
     if (!isDonateOpen) return;
@@ -45,7 +48,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onDonateClick={() => setIsDonateOpen(true)} isDonateOpen={isDonateOpen} />
+      <Header onDonateClick={() => navigate("/donate")} isDonateOpen={isDonateOpen} />
 
       {/* Hero */}
       <div className="bg-header text-header-foreground py-10">
@@ -70,7 +73,7 @@ const Index = () => {
             type="button"
             aria-label="Close donate modal"
             className="absolute inset-0 bg-black/50"
-            onClick={() => setIsDonateOpen(false)}
+            onClick={() => navigate("/")}
           />
           <div
             role="dialog"
