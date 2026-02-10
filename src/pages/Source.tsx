@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import InstallBanner from "@/components/InstallBanner";
+import Footer from "@/components/Footer";
 
 const repoUrl = "https://github.com/Konthaina/khqr-quickstart";
 const cloneCommand = "git clone https://github.com/Konthaina/khqr-quickstart.git";
@@ -55,6 +56,8 @@ const Source = () => {
           </section>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 };

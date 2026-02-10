@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import PackageReadme from "@/components/PackageReadme";
+import Footer from "@/components/Footer";
 import { type PackageId } from "@/data/packages";
 
 const tabs: {
@@ -112,21 +113,13 @@ const Index = () => {
       <main className="container max-w-6xl mx-auto px-4 py-8">
         <PackageReadme packageId={activeTab} />
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-8 mt-12">
-        <div className="container max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>
-            Built by{" "}
-            <a href="https://github.com/Konthaina" target="_blank" rel="noopener noreferrer" className="text-link hover:underline font-medium">
-              Konthaina
-            </a>{" "}
-            · MIT License · {new Date().getFullYear()}
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
 
 export default Index;
+
+
+
+
