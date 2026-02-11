@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { KHQRGenerator } from "konthaina-khqr";
 
 type Currency = "KHR" | "USD";
@@ -40,10 +40,48 @@ function formatAmount(
 export default function KhqrCard() {
     const khqrLogoSrc = `${import.meta.env.BASE_URL}khqr.svg`;
     const [currency, setCurrency] = useState<Currency>(khqrProfile.currency);
+    const [amountInput, setAmountInput] = useState<string>(() => {
+        if (typeof khqrProfile.amount === "number") {
+            return khqrProfile.amount.toString();
+        }
+        return "";
+    });
+
+    useEffect(() => {
+        if (currency === "KHR" && amountInput.includes(".")) {
+            setAmountInput(amountInput.split(".")[0]);
+        }
+    }, [currency, amountInput]);
+
+    const amountValue = useMemo(() => {
+        if (!amountInput) return undefined;
+        const parsed = Number(amountInput);
+        if (!Number.isFinite(parsed)) return undefined;
+        if (currency === "USD") {
+            return Math.round(parsed * 100) / 100;
+        }
+        return Math.round(parsed);
+    }, [amountInput, currency]);
+
+    const isStatic = khqrProfile.isStatic && amountValue === undefined;
+
+    const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const next = event.target.value.replace(/,/g, "");
+        if (next === "") {
+            setAmountInput("");
+            return;
+        }
+
+        const amountPattern =
+            currency === "USD" ? /^\d*(\.\d{0,2})?$/ : /^\d*$/;
+        if (!amountPattern.test(next)) return;
+
+        setAmountInput(next);
+    };
 
     const { md5, isValid, qrImageUrl } = useMemo(() => {
         const gen = new KHQRGenerator("individual")
-            .setStatic(khqrProfile.isStatic)
+            .setStatic(isStatic)
             .setBakongAccountId(khqrProfile.accountId)
             .setMerchantName(khqrProfile.merchantName)
             .setCurrency(currency)
@@ -52,8 +90,8 @@ export default function KhqrCard() {
             .setMobileNumber("+85515502705")
             .setMerchantCity(khqrProfile.city);
 
-        if (typeof khqrProfile.amount === "number") {
-            gen.setAmount(khqrProfile.amount);
+        if (typeof amountValue === "number") {
+            gen.setAmount(amountValue);
         }
 
         const { qr, md5 } = gen.generate();
@@ -65,13 +103,16 @@ export default function KhqrCard() {
                 qr
             )}`,
         };
-    }, [currency]);
+    }, [currency, amountValue, isStatic]);
 
-    const amountText = formatAmount(
-        khqrProfile.amount,
+    const amountPlaceholder = formatAmount(
+        undefined,
         currency,
         khqrProfile.showZeroAmount
     );
+
+    const amountSizingValue = amountInput || amountPlaceholder || "0";
+    const amountInputWidth = Math.max(amountSizingValue.length, 1);
 
     return (
         <section className="flex w-full justify-center">
@@ -125,12 +166,22 @@ export default function KhqrCard() {
                             </p>
 
                             <div className="flex items-end gap-2">
-                                {amountText ? (
-                                    <span className="text-4xl font-medium leading-none">
-                                        {amountText}
-                                    </span>
-                                ) : null}
-                                <span className="pb-1 text-sm font-medium uppercase text-gray-800">
+                                <label htmlFor="khqr-amount" className="sr-only">
+                                    Amount
+                                </label>
+                                <input
+                                    id="khqr-amount"
+                                    name="khqr-amount"
+                                    type="text"
+                                    inputMode={currency === "USD" ? "decimal" : "numeric"}
+                                    autoComplete="off"
+                                    placeholder={amountPlaceholder}
+                                    value={amountInput}
+                                    onChange={handleAmountChange}
+                                    style={{ width: `${amountInputWidth}ch` }}
+                                    className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-transparent"
+                                />
+                                <span className="pb-3 text-sm font-medium uppercase text-gray-800">
                                     {currency}
                                 </span>
                             </div>
@@ -147,9 +198,9 @@ export default function KhqrCard() {
                                 decoding="async"
                             />
                             <img
-                                src={`${import.meta.env.BASE_URL}bakong-icon.png`}
+                                src={`${import.meta.env.BASE_URL}bakong.png`}
                                 alt="Bakong"
-                                className="absolute left-1/2 top-1/2 h-[14%] w-[14%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-[1%]"
+                                className="absolute left-1/2 top-1/2 h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-[1%]"
                                 loading="lazy"
                                 decoding="async"
                             />
