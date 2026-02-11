@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { KHQRGenerator } from "konthaina-khqr";
+import KhqrKeypad, { KEYPAD_KEYS } from "@/components/KhqrKeypad";
 
 type Currency = "KHR" | "USD";
 
@@ -53,6 +54,10 @@ export default function KhqrCard() {
         }
     }, [currency, amountInput]);
 
+    useEffect(() => {
+        setAmountInput("");
+    }, [currency]);
+
     const amountValue = useMemo(() => {
         if (!amountInput) return undefined;
         const parsed = Number(amountInput);
@@ -63,7 +68,30 @@ export default function KhqrCard() {
         return Math.round(parsed);
     }, [amountInput, currency]);
 
+    const maxAmount = currency === "USD" ? 20000 : 100000000;
     const isStatic = khqrProfile.isStatic && amountValue === undefined;
+
+    const normalizeAmountInput = (value: string) => {
+        if (!value) return value;
+        if (currency === "KHR") {
+            return value.replace(/^0+(?=\d)/, "");
+        }
+        if (currency === "USD" && value.startsWith(".")) {
+            return `0${value}`;
+        }
+        return value;
+    };
+
+    const isValidAmountInput = (value: string) => {
+        const amountPattern =
+            currency === "USD" ? /^\d*(\.\d{0,2})?$/ : /^\d*$/;
+        if (!amountPattern.test(value)) return false;
+        if (!value) return true;
+
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return false;
+        return parsed <= maxAmount;
+    };
 
     const handleAmountChange = (event: ChangeEvent<HTMLInputElement>) => {
         const next = event.target.value.replace(/,/g, "");
@@ -72,14 +100,27 @@ export default function KhqrCard() {
             return;
         }
 
-        const amountPattern =
-            currency === "USD" ? /^\d*(\.\d{0,2})?$/ : /^\d*$/;
-        if (!amountPattern.test(next)) return;
+        const normalized = normalizeAmountInput(next);
+        if (!isValidAmountInput(normalized)) return;
 
-        setAmountInput(next);
+        setAmountInput(normalized);
     };
 
-    const { md5, isValid, qrImageUrl } = useMemo(() => {
+    const handleKeypadPress = (value: string) => {
+        if (value === "backspace") {
+            setAmountInput((prev) => prev.slice(0, -1));
+            return;
+        }
+
+        setAmountInput((prev) => {
+            const next = `${prev}${value}`;
+            const normalized = normalizeAmountInput(next);
+            if (!isValidAmountInput(normalized)) return prev;
+            return normalized;
+        });
+    };
+
+    const { qrImageUrl } = useMemo(() => {
         const gen = new KHQRGenerator("individual")
             .setStatic(isStatic)
             .setBakongAccountId(khqrProfile.accountId)
@@ -94,11 +135,9 @@ export default function KhqrCard() {
             gen.setAmount(amountValue);
         }
 
-        const { qr, md5 } = gen.generate();
+        const { qr } = gen.generate();
 
         return {
-            md5,
-            isValid: KHQRGenerator.verify(qr),
             qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
                 qr
             )}`,
@@ -113,13 +152,20 @@ export default function KhqrCard() {
 
     const amountSizingValue = amountInput || amountPlaceholder || "0";
     const amountInputWidth = Math.max(amountSizingValue.length, 1);
+    const keypadDisabledKeys = KEYPAD_KEYS[currency].filter((key) => {
+        if (key === "backspace") return false;
+        if (currency === "KHR" && amountInput === "" && (key === "0" || key === "00")) {
+            return true;
+        }
+        const normalized = normalizeAmountInput(`${amountInput}${key}`);
+        return !isValidAmountInput(normalized);
+    });
 
     return (
         <section className="flex w-full justify-center">
-            <div className="w-full max-w-[360px]">
-
+            <div className="flex w-full max-w-[760px] flex-col items-center">
                 {/* Currency Switcher */}
-                <div className="mb-6 flex justify-left">
+                <div className="mb-6 flex w-full max-w-[720px] justify-left">
                     <div className="flex overflow-hidden rounded-[16px] text-xs font-bold uppercase text-[#E1232E]">
                         <button
                             type="button"
@@ -140,73 +186,83 @@ export default function KhqrCard() {
                     </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-[20px] text-black shadow-lg">
-                    <div
-                        className="
+                <div className="flex w-full items-stretch justify-center gap-6">
+                    <KhqrKeypad
+                        currency={currency}
+                        onPress={handleKeypadPress}
+                        disabledKeys={keypadDisabledKeys}
+                    />
+
+                    <div className="w-full max-w-[360px]">
+                        <div className="relative overflow-hidden rounded-[20px] text-black shadow-lg">
+                            <div
+                                className="
               relative flex h-14 items-center justify-center bg-[#E1232E]
               after:content-[''] after:absolute after:top-full after:-mt-px after:-right-px
               after:h-10 after:w-10 after:bg-[#E1232E]
               after:[clip-path:polygon(0_0,100%_0,100%_100%)]
               after:pointer-events-none
             "
-                    >
-                        <img
-                            src={khqrLogoSrc}
-                            alt="KHQR"
-                            className="h-4 w-auto"
-                            loading="eager"
-                            decoding="async"
-                        />
-                    </div>
-
-                    <div className="px-12 pt-6 bg-white">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium text-gray-800">
-                                {khqrProfile.merchantName}
-                            </p>
-
-                            <div className="flex items-end gap-2">
-                                <label htmlFor="khqr-amount" className="sr-only">
-                                    Amount
-                                </label>
-                                <input
-                                    id="khqr-amount"
-                                    name="khqr-amount"
-                                    type="text"
-                                    inputMode={currency === "USD" ? "decimal" : "numeric"}
-                                    autoComplete="off"
-                                    placeholder={amountPlaceholder}
-                                    value={amountInput}
-                                    onChange={handleAmountChange}
-                                    style={{ width: `${amountInputWidth}ch` }}
-                                    className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-transparent"
+                            >
+                                <img
+                                    src={khqrLogoSrc}
+                                    alt="KHQR"
+                                    className="h-4 w-auto"
+                                    loading="eager"
+                                    decoding="async"
                                 />
-                                <span className="pb-3 text-sm font-medium uppercase text-gray-800">
-                                    {currency}
-                                </span>
                             </div>
-                        </div>
 
-                        <div className="-mx-12 mt-4 border-t border-dashed border-black/20" />
+                            <div className="px-12 pt-6 bg-white">
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium text-gray-800">
+                                        {khqrProfile.merchantName}
+                                    </p>
 
-                        <div className="relative mx-auto mt-10 aspect-square w-full bg-white">
-                            <img
-                                src={qrImageUrl}
-                                alt={`KHQR for ${khqrProfile.merchantName}`}
-                                className="h-full w-full object-contain"
-                                loading="lazy"
-                                decoding="async"
-                            />
-                            <img
-                                src={`${import.meta.env.BASE_URL}bakong.png`}
-                                alt="Bakong"
-                                className="absolute left-1/2 top-1/2 h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-[1%]"
-                                loading="lazy"
-                                decoding="async"
-                            />
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="khqr-amount" className="sr-only">
+                                            Amount
+                                        </label>
+                                        <input
+                                            id="khqr-amount"
+                                            name="khqr-amount"
+                                            type="text"
+                                            inputMode={currency === "USD" ? "decimal" : "numeric"}
+                                            autoComplete="off"
+                                            placeholder={amountPlaceholder}
+                                            value={amountInput}
+                                            onChange={handleAmountChange}
+                                            style={{ width: `${amountInputWidth}ch` }}
+                                            className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-transparent"
+                                        />
+                                        <span className="text-sm font-medium uppercase text-gray-800">
+                                            {currency}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="-mx-12 mt-4 border-t border-dashed border-black/20" />
+
+                                <div className="relative mx-auto mt-10 aspect-square w-full bg-white">
+                                    <img
+                                        src={qrImageUrl}
+                                        alt={`KHQR for ${khqrProfile.merchantName}`}
+                                        className="h-full w-full object-contain"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                    <img
+                                        src={`${import.meta.env.BASE_URL}bakong.png`}
+                                        alt="Bakong"
+                                        className="absolute left-1/2 top-1/2 h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-[1%]"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+                            </div>
+                            <div className="px-12 py-6 text-center text-xs text-gray-600 bg-white"></div>
                         </div>
                     </div>
-                    <div className="px-12 py-6 text-center text-xs text-gray-600 bg-white"></div>
                 </div>
             </div>
         </section >

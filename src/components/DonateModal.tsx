@@ -35,7 +35,7 @@ const DonateModal = () => {
         className="absolute inset-0 bg-black/50"
         onClick={handleClose}
       />
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-[360px]">
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-[720px]">
         <KhqrCard />
       </div>
     </div>
