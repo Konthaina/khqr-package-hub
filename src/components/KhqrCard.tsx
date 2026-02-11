@@ -38,6 +38,22 @@ function formatAmount(
     }).format(amount);
 }
 
+function formatInputWithCommas(value: string, currency: Currency) {
+    if (!value) return "";
+    const [integerRaw, decimalRaw] = value.split(".");
+    const integerPart = integerRaw === "" ? "0" : integerRaw;
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    if (currency === "USD") {
+        if (value.includes(".")) {
+            return `${formattedInteger}.${decimalRaw ?? ""}`;
+        }
+        return formattedInteger;
+    }
+
+    return formattedInteger;
+}
+
 export default function KhqrCard() {
     const khqrLogoSrc = `${import.meta.env.BASE_URL}khqr.svg`;
     const [currency, setCurrency] = useState<Currency>(khqrProfile.currency);
@@ -76,8 +92,16 @@ export default function KhqrCard() {
         if (currency === "KHR") {
             return value.replace(/^0+(?=\d)/, "");
         }
-        if (currency === "USD" && value.startsWith(".")) {
-            return `0${value}`;
+        if (currency === "USD") {
+            let normalized = value;
+            if (normalized.length > 1 && normalized.startsWith("0") && normalized[1] !== ".") {
+                normalized = normalized.replace(/^0+/, "");
+                if (!normalized) normalized = "0";
+            }
+            if (normalized.startsWith(".")) {
+                normalized = `0${normalized}`;
+            }
+            return normalized;
         }
         return value;
     };
@@ -150,11 +174,15 @@ export default function KhqrCard() {
         khqrProfile.showZeroAmount
     );
 
-    const amountSizingValue = amountInput || amountPlaceholder || "0";
+    const displayAmount = formatInputWithCommas(amountInput, currency);
+    const amountSizingValue = displayAmount || amountPlaceholder || "0";
     const amountInputWidth = Math.max(amountSizingValue.length, 1);
     const keypadDisabledKeys = KEYPAD_KEYS[currency].filter((key) => {
         if (key === "backspace") return false;
         if (currency === "KHR" && amountInput === "" && (key === "0" || key === "00")) {
+            return true;
+        }
+        if (amountInput === "0" && (key === "0" || key === "00")) {
             return true;
         }
         const normalized = normalizeAmountInput(`${amountInput}${key}`);
@@ -229,9 +257,9 @@ export default function KhqrCard() {
                                             type="text"
                                             inputMode={currency === "USD" ? "decimal" : "numeric"}
                                             autoComplete="off"
-                                            placeholder={amountPlaceholder}
-                                            value={amountInput}
-                                            onChange={handleAmountChange}
+                                        placeholder={amountPlaceholder}
+                                        value={displayAmount}
+                                        onChange={handleAmountChange}
                                             style={{ width: `${amountInputWidth}ch` }}
                                             className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-transparent"
                                         />
