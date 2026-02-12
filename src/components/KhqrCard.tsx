@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { KHQRGenerator } from "konthaina-khqr";
 import KhqrKeypad, { KEYPAD_KEYS } from "@/components/KhqrKeypad";
 
@@ -64,6 +64,10 @@ export default function KhqrCard() {
         return "";
     });
 
+    // --- NEW: refs for auto-sizing input by real pixel width (no right-side gap) ---
+    const amountMeasureRef = useRef<HTMLSpanElement>(null);
+    const amountInputRef = useRef<HTMLInputElement>(null);
+
     useEffect(() => {
         if (currency === "KHR" && amountInput.includes(".")) {
             setAmountInput(amountInput.split(".")[0]);
@@ -94,7 +98,11 @@ export default function KhqrCard() {
         }
         if (currency === "USD") {
             let normalized = value;
-            if (normalized.length > 1 && normalized.startsWith("0") && normalized[1] !== ".") {
+            if (
+                normalized.length > 1 &&
+                normalized.startsWith("0") &&
+                normalized[1] !== "."
+            ) {
                 normalized = normalized.replace(/^0+/, "");
                 if (!normalized) normalized = "0";
             }
@@ -107,8 +115,7 @@ export default function KhqrCard() {
     };
 
     const isValidAmountInput = (value: string) => {
-        const amountPattern =
-            currency === "USD" ? /^\d*(\.\d{0,2})?$/ : /^\d*$/;
+        const amountPattern = currency === "USD" ? /^\d*(\.\d{0,2})?$/ : /^\d*$/;
         if (!amountPattern.test(value)) return false;
         if (!value) return true;
 
@@ -176,7 +183,22 @@ export default function KhqrCard() {
 
     const displayAmount = formatInputWithCommas(amountInput, currency);
     const amountSizingValue = displayAmount || amountPlaceholder || "0";
-    const amountInputWidth = Math.max(amountSizingValue.length, 1);
+
+    // --- NEW: auto-size input to exact pixel width of the text (no right-side space) ---
+    useEffect(() => {
+        const span = amountMeasureRef.current;
+        const input = amountInputRef.current;
+        if (!span || !input) return;
+
+        // ensure span measures the same string the input shows
+        span.textContent = amountSizingValue;
+
+        const w = Math.ceil(span.getBoundingClientRect().width);
+
+        // Small guard so it never collapses too tight
+        input.style.width = `${Math.max(w, 8)}px`;
+    }, [amountSizingValue, currency]);
+
     const keypadDisabledKeys = KEYPAD_KEYS[currency].filter((key) => {
         if (key === "backspace") return false;
         if (currency === "KHR" && amountInput === "" && (key === "0" || key === "00")) {
@@ -198,7 +220,9 @@ export default function KhqrCard() {
                         <button
                             type="button"
                             onClick={() => setCurrency("KHR")}
-                            className={`px-6 py-3 transition-colors ${currency === "KHR" ? "bg-[#E1232E] text-white" : "bg-white text-[#E1232E]"
+                            className={`px-6 py-3 transition-colors ${currency === "KHR"
+                                ? "bg-[#E1232E] text-white"
+                                : "bg-white text-[#E1232E]"
                                 }`}
                         >
                             KHR
@@ -206,7 +230,9 @@ export default function KhqrCard() {
                         <button
                             type="button"
                             onClick={() => setCurrency("USD")}
-                            className={`px-6 py-3 transition-colors ${currency === "USD" ? "bg-[#E1232E] text-white" : "bg-white text-[#E1232E]"
+                            className={`px-6 py-3 transition-colors ${currency === "USD"
+                                ? "bg-[#E1232E] text-white"
+                                : "bg-white text-[#E1232E]"
                                 }`}
                         >
                             USD
@@ -225,12 +251,12 @@ export default function KhqrCard() {
                         <div className="relative overflow-hidden rounded-[20px] text-black shadow-lg">
                             <div
                                 className="
-              relative flex h-14 items-center justify-center bg-[#E1232E]
-              after:content-[''] after:absolute after:top-full after:-mt-px after:-right-px
-              after:h-10 after:w-10 after:bg-[#E1232E]
-              after:[clip-path:polygon(0_0,100%_0,100%_100%)]
-              after:pointer-events-none
-            "
+                  relative flex h-14 items-center justify-center bg-[#E1232E]
+                  after:content-[''] after:absolute after:top-full after:-mt-px after:-right-px
+                  after:h-10 after:w-10 after:bg-[#E1232E]
+                  after:[clip-path:polygon(0_0,100%_0,100%_100%)]
+                  after:pointer-events-none
+                "
                             >
                                 <img
                                     src={khqrLogoSrc}
@@ -241,7 +267,7 @@ export default function KhqrCard() {
                                 />
                             </div>
 
-                            <div className="px-12 pt-6 bg-white">
+                            <div className="bg-white px-12 pt-6">
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-gray-800">
                                         {khqrProfile.merchantName}
@@ -251,18 +277,29 @@ export default function KhqrCard() {
                                         <label htmlFor="khqr-amount" className="sr-only">
                                             Amount
                                         </label>
+
+                                        {/* NEW: hidden measurer span (exact width) */}
+                                        <span
+                                            ref={amountMeasureRef}
+                                            aria-hidden="true"
+                                            className="invisible absolute -z-10 whitespace-pre text-4xl font-medium leading-none"
+                                        >
+                                            {amountSizingValue}
+                                        </span>
+
                                         <input
+                                            ref={amountInputRef}
                                             id="khqr-amount"
                                             name="khqr-amount"
                                             type="text"
                                             inputMode={currency === "USD" ? "decimal" : "numeric"}
                                             autoComplete="off"
-                                        placeholder={amountPlaceholder}
-                                        value={displayAmount}
-                                        onChange={handleAmountChange}
-                                            style={{ width: `${amountInputWidth}ch` }}
-                                            className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-transparent"
+                                            placeholder={amountPlaceholder}
+                                            value={displayAmount}
+                                            onChange={handleAmountChange}
+                                            className="bg-transparent text-4xl font-medium leading-none text-gray-900 placeholder:text-gray-300 focus:outline-none caret-gray-900"
                                         />
+
                                         <span className="text-sm font-medium uppercase text-gray-800">
                                             {currency}
                                         </span>
@@ -288,11 +325,12 @@ export default function KhqrCard() {
                                     />
                                 </div>
                             </div>
-                            <div className="px-12 py-6 text-center text-xs text-gray-600 bg-white"></div>
+
+                            <div className="bg-white px-12 py-6 text-center text-xs text-gray-600"></div>
                         </div>
                     </div>
                 </div>
             </div>
-        </section >
+        </section>
     );
 }
