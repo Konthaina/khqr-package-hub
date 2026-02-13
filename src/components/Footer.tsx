@@ -3,7 +3,7 @@ const Footer = () => {
 
   return (
     <footer className="border-t border-border py-8 mt-12">
-      <div className="container max-w-6xl mx-auto px-4 text-sm text-muted-foreground flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="container max-w-6xl mx-auto px-4 text-sm text-muted-foreground flex flex-col gap-3 md:flex-row md:items-center md:justify-between items-center">
         <p>
           Built by{" "}
           <a href="https://github.com/Konthaina" target="_blank" rel="noopener noreferrer" className="text-link hover:underline font-medium">
